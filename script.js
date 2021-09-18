@@ -61,14 +61,22 @@ class Cycling extends Workout {
 class App {
   #map;
   #mapEvent;
+  #mapZoomLevel = 13;
   #workoutArr = [];
 
   constructor() {
+    // Get Position
     this._getPosition();
 
+    // Get data from local storage
+    this._getLocalStorage();
+
+    // Event handlers
     form.addEventListener("submit", this._newWorkout.bind(this));
 
     inputType.addEventListener("change", this._toggleElevationField);
+
+    containerWorkouts.addEventListener("click", this._moveToPopup.bind(this));
   }
 
   _getPosition() {
@@ -86,7 +94,7 @@ class App {
     const { longitude } = pos.coords;
     const coords = [latitude, longitude];
 
-    this.#map = L.map("map").setView(coords, 13);
+    this.#map = L.map("map").setView(coords, this.#mapZoomLevel);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -95,6 +103,9 @@ class App {
 
     // Handling clicks on Map
     this.#map.on("click", this._showForm.bind(this));
+
+    // Render Local Storage Data to map marker
+    this.#workoutArr.forEach((workout) => this._renderWorkoutMarker(workout));
   }
 
   _showForm(mapE) {
@@ -164,10 +175,7 @@ class App {
     // Push workout to workoutArr
     this.#workoutArr.push(workout);
 
-    // Render workoutArr on Map
-    console.log(workout);
-
-    // Render marker
+    // Render workoutArr on Map marker
     this._renderWorkoutMarker(workout);
 
     // Render workoutArr list
@@ -175,6 +183,9 @@ class App {
 
     // Hide Form +Clear input fields
     this._hideForm();
+
+    // Set local storage to all workouts
+    this._setLocalStorage();
   }
 
   _renderWorkoutMarker(workout) {
@@ -245,6 +256,43 @@ class App {
 
     // Insert html after the form element
     form.insertAdjacentHTML("afterend", html);
+  }
+
+  _moveToPopup(e) {
+    const workoutEl = e.target.closest(".workout");
+
+    if (!workoutEl) return;
+
+    const workoutClicked = this.#workoutArr.find(
+      (el) => el.id === workoutEl.dataset.id
+    );
+
+    this.#map.setView(workoutClicked.coords, this.#mapZoomLevel, {
+      animate: true,
+      pan: {
+        duration: 1,
+      },
+    });
+  }
+
+  _setLocalStorage() {
+    localStorage.setItem("workouts", JSON.stringify(this.#workoutArr)); // Change Object to String
+  }
+
+  _getLocalStorage() {
+    const localStorageData = JSON.parse(localStorage.getItem("workouts")); // Change String to Object
+
+    if (!localStorageData) return;
+
+    this.#workoutArr = localStorageData;
+
+    this.#workoutArr.forEach((workout) => this._renderWorkoutList(workout));
+    // this.#workoutArr.forEach((workout) => this._renderWorkoutMarker(workout)); // This won't work here because the map has not yet been loaded at this point. So, this line of code is placed under _loadMap method.
+  }
+
+  reset() {
+    localStorage.removeItem("workouts");
+    location.reload();
   }
 }
 
